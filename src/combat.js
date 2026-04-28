@@ -1,5 +1,5 @@
 import { gridToScreen } from './isometric.js';
-import { TILE_W, TILE_H } from './config.js';
+import { TILE_W } from './config.js';
 
 let _projId = 1;
 

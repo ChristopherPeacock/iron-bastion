@@ -1,0 +1,85 @@
+{
+  "version": 1,
+  "economy": {
+    "money": 59638.95199999723,
+    "soldiers": 0,
+    "contractedSoldiers": 0
+  },
+  "research": {
+    "rp": 10,
+    "researched": []
+  },
+  "wave": {
+    "waveNumber": 2,
+    "phase": "active",
+    "timer": -0.006800000007585134
+  },
+  "buildings": [
+    {
+      "id": "FINANCE_HQ",
+      "col": 7,
+      "row": 1,
+      "hp": 200
+    },
+    {
+      "id": "WATCH_TOWER",
+      "col": 4,
+      "row": 2,
+      "hp": 200
+    },
+    {
+      "id": "WATCH_TOWER",
+      "col": 9,
+      "row": 4,
+      "hp": 200
+    },
+    {
+      "id": "WATCH_TOWER",
+      "col": 14,
+      "row": 6,
+      "hp": 200
+    },
+    {
+      "id": "WATCH_TOWER",
+      "col": 3,
+      "row": 7,
+      "hp": 200
+    },
+    {
+      "id": "HQ",
+      "col": 7,
+      "row": 7,
+      "hp": 2500
+    },
+    {
+      "id": "FINANCE_HQ",
+      "col": 1,
+      "row": 9,
+      "hp": 200
+    },
+    {
+      "id": "WATCH_TOWER",
+      "col": 14,
+      "row": 10,
+      "hp": 200
+    },
+    {
+      "id": "WATCH_TOWER",
+      "col": 3,
+      "row": 11,
+      "hp": 200
+    },
+    {
+      "id": "BARRACKS",
+      "col": 5,
+      "row": 11,
+      "hp": 300
+    },
+    {
+      "id": "WATCH_TOWER",
+      "col": 12,
+      "row": 13,
+      "hp": 200
+    }
+  ]
+}

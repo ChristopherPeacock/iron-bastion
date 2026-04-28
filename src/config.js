@@ -79,6 +79,18 @@ export const BUILDINGS = {
     category: 'economy', color: '#6a3a20', blockMove: true,
     contractSlots: 3,
     description: 'Each office allows 3 additional soldiers on contract.'
+  },
+  TANK_DEPOT: {
+    id: 'TANK_DEPOT', name: 'Tank Depot', size: 2, cost: 18000, hp: 600, maxHp: 600,
+    category: 'military', color: '#3e2c0e', blockMove: true,
+    range: 8, damage: 75, fireRate: 0.45, armorPiercing: true, unlockRequired: 'BUNKER_TECH',
+    description: 'Deploys armored tank unit. Long range, armor-piercing, high damage. Requires Bunker Tech.'
+  },
+  MORTAR_PIT: {
+    id: 'MORTAR_PIT', name: 'Mortar Pit', size: 1, cost: 5000, hp: 160, maxHp: 160,
+    category: 'military', color: '#3a3010', blockMove: false,
+    range: 7, damage: 35, fireRate: 0.6, splash: true, unlockRequired: 'HEAVY_WEAPONS',
+    description: 'Indirect-fire mortar. Hits multiple enemies. Requires Heavy Weapons research.'
   }
 };
 

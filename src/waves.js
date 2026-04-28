@@ -6,19 +6,13 @@ function makeEnemy(type, col, row, path) {
   const def = ENEMIES[type];
   return {
     id: _nextId++,
-    type,
-    def,
-    col: col + 0.5,
-    row: row + 0.5,
-    hp: def.hp,
-    maxHp: def.hp,
-    speed: def.speed / 48, // tiles per second (48 = TILE_W)
-    path: path || [],
-    pathIndex: 0,
-    state: 'moving', // moving | attacking | dead
-    attackTimer: 0,
-    target: null,  // building instance being attacked
-    bounced: false
+    type, def,
+    col: col + 0.5, row: row + 0.5,
+    hp: def.hp, maxHp: def.hp,
+    speed: def.speed / 48,
+    path: path || [], pathIndex: 0,
+    state: 'moving',
+    attackTimer: 0, target: null
   };
 }
 
@@ -27,7 +21,7 @@ export class WaveManager {
     this.grid = grid;
     this.enemies = [];
     this.waveNumber = 0;
-    this.phase = 'prep';   // prep | warning | active
+    this.phase = 'prep';
     this.timer = WAVE_INTERVAL;
     this.spawnQueue = [];
     this.spawnTimer = 0;
@@ -37,40 +31,32 @@ export class WaveManager {
 
   update(dt, research) {
     const extraWarn = research.hasEffect('extraWarning') ? research.getEffect('extraWarning') : 0;
-    const warningThreshold = WAVE_WARNING + extraWarn;
+    const warnThresh = WAVE_WARNING + extraWarn;
 
     if (this.phase === 'prep') {
       this.timer -= dt;
-      if (this.timer <= warningThreshold) {
-        this.phase = 'warning';
-      }
+      if (this.timer <= warnThresh) this.phase = 'warning';
     } else if (this.phase === 'warning') {
       this.timer -= dt;
-      if (this.timer <= 0) {
-        this._startWave();
-      }
+      if (this.timer <= 0) this._startWave();
     } else if (this.phase === 'active') {
-      // Spawn queued enemies
       if (this.spawnQueue.length > 0) {
         this.spawnTimer -= dt;
         if (this.spawnTimer <= 0) {
           const next = this.spawnQueue.shift();
-          const enemy = this._spawnEnemy(next.type, next.spawnCol, next.spawnRow);
-          if (enemy) this.enemies.push(enemy);
-          this.spawnTimer = 0.6 + Math.random() * 0.4; // 0.6–1s between spawns
+          const e = this._spawnEnemy(next.type, next.spawnCol, next.spawnRow);
+          if (e) this.enemies.push(e);
+          this.spawnTimer = 0.6 + Math.random() * 0.4;
         }
       }
 
-      // Update enemy movement/attack
       for (const e of this.enemies) {
         if (e.state === 'dead') continue;
         this._updateEnemy(e, dt);
       }
 
-      // Remove dead enemies
       this.enemies = this.enemies.filter(e => e.state !== 'dead');
 
-      // Wave complete when queue empty and no live enemies
       if (this.spawnQueue.length === 0 && this.enemies.length === 0) {
         this.phase = 'prep';
         this.timer = WAVE_INTERVAL;
@@ -87,11 +73,8 @@ export class WaveManager {
 
     const tplIdx = Math.min(this.waveNumber - 1, WAVE_TEMPLATES.length - 1);
     const template = WAVE_TEMPLATES[tplIdx];
-
-    // Scale later waves
     const scale = Math.max(1, 1 + (this.waveNumber - WAVE_TEMPLATES.length) * 0.2);
 
-    // Pick 1-2 random spawn corners
     const shuffled = [...SPAWN_CORNERS].sort(() => Math.random() - 0.5);
     const usedCorners = shuffled.slice(0, this.waveNumber >= 3 ? 2 : 1);
 
@@ -103,15 +86,16 @@ export class WaveManager {
         this.spawnQueue.push({ type: group.type, spawnCol: corner.col, spawnRow: corner.row });
       }
     }
-    // Shuffle queue for mixed waves
     this.spawnQueue.sort(() => Math.random() - 0.5);
   }
 
   _spawnEnemy(type, col, row) {
     const path = this.grid.pathToHQ(col, row);
     if (!path) {
-      // No path: spawn but use direct approach
-      return makeEnemy(type, col, row, [{ col: this.grid.hqCol, row: this.grid.hqRow }]);
+      // Base is fully enclosed at spawn — immediately attack nearest wall
+      const enemy = makeEnemy(type, col, row, []);
+      enemy.state = 'moving'; // will find blocker on first update
+      return enemy;
     }
     return makeEnemy(type, col, row, path);
   }
@@ -122,22 +106,53 @@ export class WaveManager {
       return;
     }
 
-    // Move toward current waypoint
-    if (enemy.pathIndex >= enemy.path.length) {
-      // Reached HQ area
-      enemy.state = 'attacking';
-      enemy.target = this.grid.getHQ();
+    const gc = Math.floor(enemy.col);
+    const gr = Math.floor(enemy.row);
+
+    // No path or path exhausted — do NOT auto-attack HQ, find walls first
+    if (!enemy.path || enemy.path.length === 0 || enemy.pathIndex >= enemy.path.length) {
+      const newPath = this.grid.pathToHQ(gc, gr);
+      if (newPath && newPath.length > 0) {
+        enemy.path = newPath;
+        enemy.pathIndex = 0;
+      } else {
+        // Must attack a wall/blocker — only attack HQ if literally adjacent
+        const distToHQ = Math.abs(gc - this.grid.hqCol) + Math.abs(gr - this.grid.hqRow);
+        if (distToHQ <= 1) {
+          enemy.state = 'attacking';
+          enemy.target = this.grid.getHQ();
+        } else {
+          this._startAttackingBlocker(enemy, gc, gr);
+        }
+      }
       return;
     }
 
+    // PRE-CHECK: is the next waypoint now blocked by a wall placed since path was calculated?
     const wp = enemy.path[enemy.pathIndex];
+    const wpCell = this.grid.getCell(wp.col, wp.row);
+    const wpIsHQ = (wp.col === this.grid.hqCol && wp.row === this.grid.hqRow);
+    if (wpCell?.blocksPath && wpCell.building && !wpIsHQ) {
+      // Wall placed on our route — repath now, before we walk into it
+      const newPath = this.grid.pathToHQ(gc, gr);
+      if (newPath && newPath.length > 0) {
+        enemy.path = newPath;
+        enemy.pathIndex = 0;
+      } else {
+        enemy.state = 'attacking';
+        enemy.target = wpCell.building;
+      }
+      return;
+    }
+
+    // Move toward waypoint
     const tx = wp.col + 0.5;
     const ty = wp.row + 0.5;
     const dx = tx - enemy.col;
     const dy = ty - enemy.row;
     const dist = Math.sqrt(dx * dx + dy * dy);
 
-    if (dist < 0.1) {
+    if (dist < 0.12) {
       enemy.pathIndex++;
       return;
     }
@@ -145,27 +160,10 @@ export class WaveManager {
     const move = enemy.speed * dt;
     enemy.col += (dx / dist) * move;
     enemy.row += (dy / dist) * move;
-
-    // Check if stepping into a blocking cell (wall/building destroyed path)
-    const gc = Math.floor(enemy.col);
-    const gr = Math.floor(enemy.row);
-    const cell = this.grid.getCell(gc, gr);
-    if (cell?.blocksPath && cell.building) {
-      // Repath or attack the blocker
-      const newPath = this.grid.pathToHQ(gc, gr);
-      if (newPath) {
-        enemy.path = newPath;
-        enemy.pathIndex = 0;
-      } else {
-        enemy.state = 'attacking';
-        enemy.target = cell.building;
-      }
-    }
   }
 
   _handleAttack(enemy, dt) {
     if (!enemy.target || enemy.target.hp <= 0) {
-      // Target destroyed — repath
       const gc = Math.floor(enemy.col);
       const gr = Math.floor(enemy.row);
       const newPath = this.grid.pathToHQ(gc, gr);
@@ -175,23 +173,89 @@ export class WaveManager {
         enemy.state = 'moving';
         enemy.target = null;
       } else {
-        // Found HQ or nowhere to go
-        const hq = this.grid.getHQ();
-        if (hq) { enemy.target = hq; }
-        else { enemy.state = 'dead'; }
+        // Path still blocked — attack the NEAREST WALL toward HQ, not the HQ itself
+        const blocker = this._findNearestBlocker(gc, gr);
+        if (blocker) {
+          enemy.target = blocker;
+        } else {
+          // No blocker nearby means we're actually inside or adjacent to HQ
+          const distToHQ = Math.abs(gc - this.grid.hqCol) + Math.abs(gr - this.grid.hqRow);
+          if (distToHQ <= 2) {
+            const hq = this.grid.getHQ();
+            if (hq) enemy.target = hq;
+            else enemy.state = 'dead';
+          } else {
+            enemy.state = 'dead';
+          }
+        }
       }
       return;
     }
 
     enemy.attackTimer += dt;
-    const atkRate = 1.0; // attacks per second
-    if (enemy.attackTimer >= 1 / atkRate) {
+    if (enemy.attackTimer >= 1.0) {
       enemy.attackTimer = 0;
       enemy.target.hp -= enemy.def.damage;
       if (enemy.target.hp <= 0) {
         this.grid.demolish(enemy.target.col, enemy.target.row);
       }
     }
+  }
+
+  _startAttackingBlocker(enemy, gc, gr) {
+    const blocker = this._findNearestBlocker(gc, gr);
+    if (blocker) {
+      enemy.state = 'attacking';
+      enemy.target = blocker;
+    } else {
+      // Open ground, no walls — just try direct movement toward HQ
+      const distToHQ = Math.abs(gc - this.grid.hqCol) + Math.abs(gr - this.grid.hqRow);
+      if (distToHQ <= 1) {
+        enemy.state = 'attacking';
+        enemy.target = this.grid.getHQ();
+      } else {
+        // Move directly toward HQ (open ground scenario)
+        const dx = (this.grid.hqCol + 0.5) - enemy.col;
+        const dy = (this.grid.hqRow + 0.5) - enemy.row;
+        const d = Math.sqrt(dx * dx + dy * dy);
+        if (d > 0.5) {
+          enemy.path = [{ col: this.grid.hqCol, row: this.grid.hqRow }];
+          enemy.pathIndex = 0;
+        }
+      }
+    }
+  }
+
+  // BFS toward HQ direction to find the nearest blocking building
+  _findNearestBlocker(fromCol, fromRow) {
+    const hqCol = this.grid.hqCol;
+    const hqRow = this.grid.hqRow;
+    const visited = new Set();
+    const queue = [{ col: fromCol, row: fromRow }];
+
+    for (let iter = 0; iter < 120 && queue.length > 0; iter++) {
+      // Sort to prefer cells closer to HQ
+      queue.sort((a, b) =>
+        (Math.abs(a.col - hqCol) + Math.abs(a.row - hqRow)) -
+        (Math.abs(b.col - hqCol) + Math.abs(b.row - hqRow))
+      );
+      const { col, row } = queue.shift();
+      const key = col * 100 + row;
+      if (visited.has(key)) continue;
+      visited.add(key);
+      if (col < 0 || col >= this.grid.cols || row < 0 || row >= this.grid.rows) continue;
+
+      const cell = this.grid.getCell(col, row);
+      if (cell?.building && cell.blocksPath && !(col === fromCol && row === fromRow)) {
+        return cell.building;
+      }
+
+      for (const [dc, dr] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+        const nk = (col + dc) * 100 + (row + dr);
+        if (!visited.has(nk)) queue.push({ col: col + dc, row: row + dr });
+      }
+    }
+    return null;
   }
 
   damageEnemy(enemyId, damage) {
@@ -203,6 +267,16 @@ export class WaveManager {
       return { reward: e.def.reward };
     }
     return null;
+  }
+
+  // Preview of what the NEXT wave will contain (shown during warning phase)
+  getWavePreview() {
+    const nextWave = this.waveNumber + (this.phase === 'active' ? 0 : 1);
+    const tplIdx = Math.min(nextWave - 1, WAVE_TEMPLATES.length - 1);
+    if (tplIdx < 0) return [];
+    const template = WAVE_TEMPLATES[tplIdx];
+    const scale = Math.max(1, 1 + (nextWave - WAVE_TEMPLATES.length) * 0.2);
+    return template.map(g => ({ type: g.type, count: Math.ceil(g.count * scale) }));
   }
 
   serialize() {
