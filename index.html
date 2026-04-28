@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Iron Bastion — Military Base Tycoon</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- ── Resource Bar ── -->
+  <header id="resource-bar">
+    <div class="resource">
+      <span class="label">Funds</span>
+      <span class="val" id="money-val">$50,000</span>
+    </div>
+    <div class="resource">
+      <span class="label">Research</span>
+      <span class="val" id="rp-val">0 RP</span>
+    </div>
+    <div class="resource">
+      <span class="label">Soldiers</span>
+      <span class="val" id="soldier-val">0/0</span>
+    </div>
+    <div id="wave-status">Wave 0 — Prep phase</div>
+    <div style="margin-left:auto;display:flex;gap:8px;">
+      <button id="save-btn" class="eco-btn" style="padding:4px 12px;">Save</button>
+      <button id="newgame-btn" class="eco-btn danger" style="padding:4px 12px;">New Game</button>
+    </div>
+  </header>
+
+  <!-- ── Main Area ── -->
+  <div id="game-area">
+    <canvas id="game-canvas"></canvas>
+
+    <aside id="side-panel">
+
+      <!-- Build Panel -->
+      <div class="panel">
+        <h3>Build</h3>
+        <div id="build-tabs">
+          <button class="tab-btn active" data-tab="structures">Structures</button>
+          <button class="tab-btn" data-tab="military">Military</button>
+          <button class="tab-btn" data-tab="economy">Economy</button>
+        </div>
+        <div id="build-list"></div>
+        <div style="font-size:10px;color:#4a6a42;margin-top:6px;">Right-click to cancel placement</div>
+      </div>
+
+      <!-- Selection Panel -->
+      <div class="panel">
+        <h3>Selected Tile</h3>
+        <div id="selection-info" style="font-size:12px;color:#6a8a62;">Click a tile to inspect</div>
+        <button id="demolish-btn" style="display:none;">Demolish</button>
+      </div>
+
+      <!-- Economy Panel -->
+      <div class="panel">
+        <h3>Economy</h3>
+        <div class="eco-row"><span class="label">Income/s</span><span class="positive" id="income-val">$0/s</span></div>
+        <div class="eco-row"><span class="label">Wages/s</span><span class="negative" id="wages-val">$0/s</span></div>
+        <div class="eco-row"><span class="label">Net/s</span><span id="net-val">$0/s</span></div>
+
+        <div class="eco-btns" style="margin-top:10px;">
+          <button id="hire-btn" class="eco-btn">Hire Soldier<br><span style="font-size:9px;">$2,000</span></button>
+          <button id="fire-btn" class="eco-btn danger">Fire Soldier<br><span style="font-size:9px;">+$600</span></button>
+        </div>
+
+        <div class="soldier-row" style="margin-top:8px;">
+          <label>On Contract</label>
+          <input type="range" id="contract-slider" min="0" max="0" value="0" style="flex:1;">
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:#6a8a62;">
+          <span id="defend-val">0 defending</span>
+          <span id="contract-val">0 on contract</span>
+        </div>
+        <div style="font-size:10px;color:#4a6a42;margin-top:4px;">
+          Contracted soldiers earn income. Build Contract Offices to increase slots.
+        </div>
+      </div>
+
+    </aside>
+  </div>
+
+  <!-- ── Research Panel ── -->
+  <div id="research-panel">
+    <h3>Research Tree &mdash; <span id="rp-count">0 RP</span></h3>
+    <div id="research-tree"></div>
+  </div>
+
+</div>
+
+<!-- ── Notifications ── -->
+<div id="notifications"></div>
+
+<!-- ── Game Over Overlay ── -->
+<div id="overlay">
+  <h2 id="overlay-title" style="color:#e03030;">BASE OVERRUN</h2>
+  <p class="sub" id="overlay-sub">Your HQ has been destroyed. Rebuild and try again.</p>
+  <button id="restart-btn">NEW GAME</button>
+</div>
+
+<script type="module" src="src/main.js"></script>
+</body>
+</html>
